@@ -13,14 +13,16 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
+
+
 namespace FeatureBag_refactor
 {
-    class SecondBag
+    public class L1BOF : IDisposable
     {
-        string directory;
-        private SVM SecondLayerSVM; private Matrix<float> SecondLayerDic;
+        bool loaded = false;
+        private SVM topLayerSVM; private Matrix<float> topLayerDic;
         private List<Image<Bgr, byte>> refImagesContainer = new List<Image<Bgr, byte>>();
-        int SecondLayerNum = 0;
+        int TopLayerNum = 0;
         int j;
         private static int classNum = 50; //number of clusters/classes 
         Matrix<float> labels;
@@ -31,52 +33,57 @@ namespace FeatureBag_refactor
         private BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
         private Matrix<float> trainingDescriptors;
 
-        public void TrainByClass(string dir)
+        public void TrainByClass(List<string> dirs, float[] classes)
         {
-            directory = dir;
+            foreach (string dir in dirs)
+            {
                 foreach (FileInfo file in new DirectoryInfo(dir).GetFiles())
                 {
-                    SecondLayerNum++;
+                    TopLayerNum++;
                 }
 
-            labels = new Matrix<float>(SecondLayerNum, 1);
-            trainingDescriptors = new Matrix<float>(SecondLayerNum, classNum);
+            }
+            labels = new Matrix<float>(TopLayerNum, 1);
+            trainingDescriptors = new Matrix<float>(TopLayerNum, classNum);
+            j = 0;
+            foreach (string dir in dirs)
+            {
                 foreach (FileInfo file in new DirectoryInfo(dir).GetFiles())
                 {
                     Extract(new Image<Bgr, byte>(file.FullName));
                 }
+                Console.WriteLine();
 
+            }
             MakeDic();
-            j = 0;
-          
+            int i = 0; ; j = 0;
+            foreach (string dir in dirs)
+            {
                 foreach (FileInfo file in new DirectoryInfo(dir).GetFiles())
                 {
-                    MakeDescriptors(new Image<Bgr, byte>(file.FullName));
+                    MakeDescriptors(new Image<Bgr, byte>(file.FullName), classes[i]);
                 }
-                 Console.WriteLine();
-            SecondLayerSVM = new SVM();
-            SVMParams p = new SVMParams();
-            p.KernelType = SVM_KERNEL_TYPE.LINEAR;
-            p.SVMType = SVM_TYPE.C_SVC;
-            p.C = 1;
-            p.TermCrit = new MCvTermCriteria(100, 0.00001);
-            SecondLayerSVM.Train(trainingDescriptors, labels, null, null, p);
+                i++; Console.WriteLine();
+
+            }
         }
         public void Save()
         {
-            SecondLayerSVM = new SVM();
+            topLayerSVM = new SVM();
             SVMParams p = new SVMParams();
             p.KernelType = SVM_KERNEL_TYPE.LINEAR;
             p.SVMType = SVM_TYPE.C_SVC;
             p.C = 1;
             p.TermCrit = new MCvTermCriteria(100, 0.00001);
-            SecondLayerSVM.Train(trainingDescriptors, labels, null, null, p);
+            topLayerSVM.Train(trainingDescriptors, labels, null, null, p);
             IFormatter formatter = new BinaryFormatter();
-            Stream fs = File.OpenWrite(directory + "\\obj\\dic.xml");
-            formatter.Serialize(fs, SecondLayerDic);
+            Stream fs = File.OpenWrite(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\dic.xml");
+            formatter.Serialize(fs, topLayerDic);
 
             fs.Dispose();
-            SecondLayerSVM.Save(directory + "\\obj\\svm.xml");
+            topLayerSVM.Save(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\svm.xml");
+            loaded = true;
+
         }
         private void Extract(Image<Bgr, byte> newRefPic)
         {
@@ -99,10 +106,10 @@ namespace FeatureBag_refactor
         }
         private void MakeDic()
         {
-            SecondLayerDic = bowTrainer.Cluster();
-            bowDe.SetVocabulary(SecondLayerDic);
+            topLayerDic = bowTrainer.Cluster();
+            bowDe.SetVocabulary(topLayerDic);
         }
-        private void MakeDescriptors(Image<Bgr, byte> newRefPic)
+        private void MakeDescriptors(Image<Bgr, byte> newRefPic, float x)
         {
             using (Image<Gray, byte> modelGray = newRefPic.Convert<Gray, Byte>())
             using (VectorOfKeyPoint modelKeyPoints = _detector.DetectKeyPointsRaw(modelGray, null))
@@ -113,7 +120,7 @@ namespace FeatureBag_refactor
                 {
                     trainingDescriptors.Data[j, i] = modelBowDescriptor.Data[0, i];
                 }
-                labels.Data[j, 0] = j+1;
+                labels.Data[j, 0] = x;
                 j++;
             }
         }
@@ -124,31 +131,39 @@ namespace FeatureBag_refactor
             VectorOfKeyPoint testKeyPoints = _detector.DetectKeyPointsRaw(testImgGray, null);
             BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
             IFormatter formatter = new BinaryFormatter();
-            FileStream fs = File.OpenRead(directory+ "obj\\dic.xml");
-            SecondLayerDic = (Matrix<float>)formatter.Deserialize(fs);
+            FileStream fs = File.OpenRead(AppDomain.CurrentDomain.BaseDirectory + "obj\\dic.xml");
+            topLayerDic = (Matrix<float>)formatter.Deserialize(fs);
             fs.Dispose();
-            bowDe.SetVocabulary(SecondLayerDic);
-            SecondLayerSVM = new SVM();
-            SecondLayerSVM.Load(directory + "\\obj\\svm.xml");
+            bowDe.SetVocabulary(topLayerDic);
+            topLayerSVM = new SVM();
+            topLayerSVM.Load(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\svm.xml");
             Matrix<float> testBowDescriptor = bowDe.Compute(testImgGray, testKeyPoints);
-            float result = SecondLayerSVM.Predict(testBowDescriptor);
+            float result = topLayerSVM.Predict(testBowDescriptor);
+            loaded = true;
             return result;
         }
         private float ImmediatPredict(Image<Bgr, byte> refPic)
         {
             Image<Gray, byte> testImgGray = refPic.Convert<Gray, Byte>();
             VectorOfKeyPoint testKeyPoints = _detector.DetectKeyPointsRaw(testImgGray, null);
+            BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
+            bowDe.SetVocabulary(topLayerDic);
+            topLayerSVM = new SVM();
             Matrix<float> testBowDescriptor = bowDe.Compute(testImgGray, testKeyPoints);
-            float result = SecondLayerSVM.Predict(testBowDescriptor);
+            float result = topLayerSVM.Predict(testBowDescriptor);
 
             return result;
         }
-        public float SecondLayerPredict(Image<Bgr, byte> refPic)
+        public float L1Predict(Image<Bgr, byte> refPic)
         {
             //if (loaded) 
-            return ImmediatPredict(refPic);
-            //else  
-            //return LoadAndPredict(refPic);
+            //return ImmediatPredict(refPic);else  
+            return LoadAndPredict(refPic);
+        }
+
+        public void Dispose()
+        {
+            Console.WriteLine("Training Complete, Result Saved.\n");
         }
     }
 }
