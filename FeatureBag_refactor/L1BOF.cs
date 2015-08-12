@@ -19,9 +19,8 @@ namespace FeatureBag_refactor
 {
     public class L1BOF : IDisposable
     {
-        bool loaded = false;
         private SVM topLayerSVM; private Matrix<float> topLayerDic;
-        private List<Image<Bgr, byte>> refImagesContainer = new List<Image<Bgr, byte>>();
+        //private List<Image<Bgr, byte>> refImagesContainer = new List<Image<Bgr, byte>>();
         int TopLayerNum = 0;
         int j;
         private static int classNum = 50; //number of clusters/classes 
@@ -52,9 +51,10 @@ namespace FeatureBag_refactor
                 {
                     Extract(new Image<Bgr, byte>(file.FullName));
                 }
-                Console.WriteLine();
+               
 
             }
+            Console.WriteLine("Finished Extracting Features.\n");
             MakeDic();
             int i = 0; ; j = 0;
             foreach (string dir in dirs)
@@ -63,9 +63,10 @@ namespace FeatureBag_refactor
                 {
                     MakeDescriptors(new Image<Bgr, byte>(file.FullName), classes[i]);
                 }
-                i++; Console.WriteLine();
+                i++; 
 
             }
+            Console.WriteLine("Finished Making Descriptors.\n");
         }
         public void Save()
         {
@@ -82,13 +83,12 @@ namespace FeatureBag_refactor
 
             fs.Dispose();
             topLayerSVM.Save(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\svm.xml");
-            loaded = true;
 
         }
         private void Extract(Image<Bgr, byte> newRefPic)
         {
 
-            refImagesContainer.Add(newRefPic);
+            //refImagesContainer.Add(newRefPic);
             bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
 
 
@@ -125,30 +125,29 @@ namespace FeatureBag_refactor
             }
         }
 
-        private float LoadAndPredict(Image<Bgr, byte> refPic)
-        {
-            Image<Gray, byte> testImgGray = refPic.Convert<Gray, byte>();
-            VectorOfKeyPoint testKeyPoints = _detector.DetectKeyPointsRaw(testImgGray, null);
-            BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
-            IFormatter formatter = new BinaryFormatter();
-            FileStream fs = File.OpenRead(AppDomain.CurrentDomain.BaseDirectory + "obj\\dic.xml");
-            topLayerDic = (Matrix<float>)formatter.Deserialize(fs);
-            fs.Dispose();
-            bowDe.SetVocabulary(topLayerDic);
-            topLayerSVM = new SVM();
-            topLayerSVM.Load(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\svm.xml");
-            Matrix<float> testBowDescriptor = bowDe.Compute(testImgGray, testKeyPoints);
-            float result = topLayerSVM.Predict(testBowDescriptor);
-            loaded = true;
-            return result;
-        }
+        //private float LoadAndPredict(Image<Bgr, byte> refPic)
+        //{
+        //    Image<Gray, byte> testImgGray = refPic.Convert<Gray, byte>();
+        //    VectorOfKeyPoint testKeyPoints = _detector.DetectKeyPointsRaw(testImgGray, null);
+        //    BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
+        //    IFormatter formatter = new BinaryFormatter();
+        //    FileStream fs = File.OpenRead(AppDomain.CurrentDomain.BaseDirectory + "obj\\dic.xml");
+        //    topLayerDic = (Matrix<float>)formatter.Deserialize(fs);
+        //    fs.Dispose();
+        //    bowDe.SetVocabulary(topLayerDic);
+        //    topLayerSVM = new SVM();
+        //    topLayerSVM.Load(AppDomain.CurrentDomain.BaseDirectory + "\\obj\\svm.xml");
+        //    Matrix<float> testBowDescriptor = bowDe.Compute(testImgGray, testKeyPoints);
+        //    float result = topLayerSVM.Predict(testBowDescriptor);
+        //    loaded = true;
+        //    return result;
+        //}
         private float ImmediatPredict(Image<Bgr, byte> refPic)
         {
             Image<Gray, byte> testImgGray = refPic.Convert<Gray, Byte>();
             VectorOfKeyPoint testKeyPoints = _detector.DetectKeyPointsRaw(testImgGray, null);
             BOWImgDescriptorExtractor<float> bowDe = new BOWImgDescriptorExtractor<float>(_detector, _matcher);
             bowDe.SetVocabulary(topLayerDic);
-            topLayerSVM = new SVM();
             Matrix<float> testBowDescriptor = bowDe.Compute(testImgGray, testKeyPoints);
             float result = topLayerSVM.Predict(testBowDescriptor);
 
@@ -156,14 +155,14 @@ namespace FeatureBag_refactor
         }
         public float L1Predict(Image<Bgr, byte> refPic)
         {
-            //if (loaded) 
-            //return ImmediatPredict(refPic);else  
-            return LoadAndPredict(refPic);
+            ////if (loaded) 
+            return ImmediatPredict(refPic);
+            //return LoadAndPredict(refPic);
         }
 
         public void Dispose()
         {
-            Console.WriteLine("Training Complete, Result Saved.\n");
+            //Console.WriteLine("Training Complete, Result Saved.\n");
         }
     }
 }

@@ -44,7 +44,7 @@ namespace FeatureBag_refactor
                     
             }
             Console.WriteLine();
-            Console.WriteLine("Generating Layer1 SVM");
+            Console.WriteLine("Generating Layer1 SVM\n");
 
             //train layer1 bof.
             LayerOneBag = new L1BOF();

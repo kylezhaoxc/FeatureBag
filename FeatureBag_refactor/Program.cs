@@ -19,15 +19,16 @@ namespace FeatureBag_refactor
 
             Stopwatch watch = new Stopwatch();
             watch.Start();
-            Console.Write(searcher.BOFPredict(new Image<Bgr, byte>("D:\\2-test.jpg"))+"\t");
+            Console.Write(searcher.BOFPredict(new Image<Bgr, byte>("D:\\2-test.jpg")) + "\t");
             watch.Stop();
-            Console.WriteLine( watch.ElapsedMilliseconds + " ms ");
+            Console.WriteLine(watch.ElapsedMilliseconds + " ms ");
+            while (true) { 
             watch.Restart();
             Console.Write(searcher.BOFPredict(new Image<Bgr, byte>("D:\\1-test.jpg")) + "\t");
             watch.Stop();
             Console.WriteLine(watch.ElapsedMilliseconds + " ms ");
-           
-            Console.Read();
+        }
+           // Console.Read();
 
         }
     }
